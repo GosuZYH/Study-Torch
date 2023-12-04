@@ -1,9 +1,10 @@
 import os
 from datetime import datetime
-import numpy as np
+
 import matplotlib.pyplot as plt
-import seaborn as sns
+import numpy as np
 import pandas as pd
+import seaborn as sns
 import torch
 
 
@@ -15,7 +16,8 @@ def df_generator(epoches, tags, save_path=None):
     if save_path:
         df.to_csv(save_path, encoding='utf-8')
     return df
-    
+
+
 def nms_1cls(dets, thresh):
     """
     单类别NMS
@@ -55,7 +57,7 @@ def nms_1cls(dets, thresh):
         iou = inter / (areas[i] + areas[order[1:]] - inter)
         # 保留IoU小于阈值的bbox
         inds = np.where(iou <= thresh)[0]
-        order = order[inds+1]
+        order = order[inds + 1]
     return keep
 
 
@@ -69,7 +71,7 @@ def nms_multi_cls(dets, thresh, n_cls):
     # 储存结果的列表，keeps_index[i]表示第i类保留下来的bbox下标list
     keeps_index = []
     for i in range(n_cls):
-        order_i = np.where(dets[:,5]==i)[0]
+        order_i = np.where(dets[:, 5] == i)[0]
         det = dets[dets[:, 5] == i, 0:5]
         if det.shape[0] == 0:
             keeps_index.append([])
@@ -85,17 +87,18 @@ def labels2bbox(matrix):
     :param matrix: 注意，输入的数据中，bbox坐标的格式是(px,py,w,h)，需要转换为(x1,y1,x2,y2)的格式再输入NMS
     :return: 返回NMS处理后的结果,bboxes.shape = (-1, 6), 0:4是(x1,y1,x2,y2), 4是conf， 5是cls
     """
-    if matrix.shape[0:2]!=(7,7):
+    if matrix.shape[0:2] != (7, 7):
         raise ValueError("Error: Wrong labels size: ", matrix.size(), " != (7,7)")
     bboxes = np.zeros((98, 6))
     # 先把7*7*30的数据转变为bbox的(98,25)的格式，其中，bbox信息格式从(px,py,w,h)转换为(x1,y1,x2,y2),方便计算iou
-    matrix = matrix.reshape(49,-1)
+    matrix = matrix.reshape(49, -1)
     bbox = matrix[:, :10].reshape(98, 5)
     r_grid = np.array(list(range(7)))
     r_grid = np.repeat(r_grid, repeats=14, axis=0)  # [0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 1 1 1 1 1 1 1 1 1 1 1 1 ...]
     c_grid = np.array(list(range(7)))
     c_grid = np.repeat(c_grid, repeats=2, axis=0)[np.newaxis, :]
-    c_grid = np.repeat(c_grid, repeats=7, axis=0).reshape(-1)  # [0 0 1 1 2 2 3 3 4 4 5 5 6 6 0 0 1 1 2 2 3 3 4 4 5 5 6 6...]
+    c_grid = np.repeat(c_grid, repeats=7, axis=0).reshape(
+        -1)  # [0 0 1 1 2 2 3 3 4 4 5 5 6 6 0 0 1 1 2 2 3 3 4 4 5 5 6 6...]
     bboxes[:, 0] = np.maximum((bbox[:, 0] + c_grid) / 7.0 - bbox[:, 2] / 2.0, 0)
     bboxes[:, 1] = np.maximum((bbox[:, 1] + r_grid) / 7.0 - bbox[:, 3] / 2.0, 0)
     bboxes[:, 2] = np.minimum((bbox[:, 0] + c_grid) / 7.0 + bbox[:, 2] / 2.0, 1)
@@ -112,6 +115,7 @@ def labels2bbox(matrix):
     ids = sorted(ids)
     return bboxes[ids, :]
 
+
 def indicators_plot(epoches, tags, save_fig_path=None, csv_save_path=None):
     """
     :param epoches:迭代次数
@@ -120,9 +124,9 @@ def indicators_plot(epoches, tags, save_fig_path=None, csv_save_path=None):
     """
     df = df_generator(epoches, tags, save_path=csv_save_path)
     sns.set_style("darkgrid")
-    plt.figure(figsize=(8.,8.))
+    plt.figure(figsize=(8., 8.))
     plt.subplot(2, 2, 1)
-    sns.lineplot(x='epoch',y='losses',data=df)
+    sns.lineplot(x='epoch', y='losses', data=df)
     # sns.lineplot(x='epoch',y='accuracy',data=df)
     plt.xlabel('Epoch')
     plt.ylabel('Loss')
@@ -208,15 +212,17 @@ Model:\n{}\n,
         year, month, day, hour,
         minute, second
     ))
-    indicators_plot(epoches, tags, save_fig_path=exp_path + '/indicators.jpg', csv_save_path=exp_path +'/indicators.csv')
+    indicators_plot(epoches, tags, save_fig_path=exp_path + '/indicators.jpg',
+                    csv_save_path=exp_path + '/indicators.csv')
     print("Training log has been saved to path:{}".format(exp_path))
+
 
 def class_get(cls_txt):
     """
     遍历xml读取kind
     txt file -> buffer
     """
-    with open(cls_txt,'r') as f:
+    with open(cls_txt, 'r') as f:
         content = f.read()
         content = content.split('\n')[:-1]
         return content

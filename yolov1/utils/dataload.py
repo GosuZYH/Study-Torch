@@ -1,13 +1,14 @@
-import numpy as np 
-from torch.utils.data import DataLoader,Dataset,random_split
-from torchvision.transforms import *
-from pandas import read_csv
-from PIL import Image 
-from xml.dom.minidom import parse
 import os
-import pandas as pd
+from xml.dom.minidom import parse
+
 import numpy as np
+import pandas as pd
+from PIL import Image
+from pandas import read_csv
+from torch.utils.data import DataLoader, Dataset, random_split
+from torchvision.transforms import *
 from tqdm import tqdm
+
 
 def readvocxml(xml_path, image_dir):
     """ 
@@ -41,8 +42,9 @@ def readvocxml(xml_path, image_dir):
         info.append(xmax)
         info.append(ymax)
         objects_info.append(info)
- 
+
     return [filename, path, depth, height, width, objects_info]
+
 
 def convert_bbox2labels(bboxes):
     """
@@ -61,8 +63,8 @@ def convert_bbox2labels(bboxes):
         x = bbox[1] / grid_size - grid_x
         y = bbox[2] / grid_size - grid_y
         label[0:5, grid_x, grid_y] = np.array([x, y, bbox[3], bbox[4], 1])  # first bbox idx:0-4
-        label[5:10, grid_x, grid_y] = np.array([x, y, bbox[3], bbox[4], 1]) # second bbox idx:5-9
-        label[10 + int(bbox[0]), grid_x, grid_y] = 1                        # class one-hot:10-30
+        label[5:10, grid_x, grid_y] = np.array([x, y, bbox[3], bbox[4], 1])  # second bbox idx:5-9
+        label[10 + int(bbox[0]), grid_x, grid_y] = 1  # class one-hot:10-30
     return label
 
 
@@ -71,10 +73,11 @@ def class_get(cls_txt):
     遍历xml读取kind
     txt file -> buffer
     """
-    with open(cls_txt,'r') as f:
+    with open(cls_txt, 'r') as f:
         content = f.read()
         content = content.split('\n')[:-1]
         return content
+
 
 def class_generator(xml_dir, cls_txt):
     """
@@ -96,13 +99,15 @@ def class_generator(xml_dir, cls_txt):
     with open(cls_txt, 'w') as f:
         f.write(strs)
 
-def generator(image_dir, xml_dir, txt_dir, cls_path,refer_path):
-    if os.path.exists(cls_path)==False: # 如果没有classes.txt，就生成一个
+
+def generator(image_dir, xml_dir, txt_dir, cls_path, refer_path):
+    for path in [image_dir, xml_dir, txt_dir]:
+        if not os.path.exists(path):
+            os.makedirs(path)
+    if not os.path.exists(cls_path):  # 如果没有classes.txt，就生成一个
         class_generator(xml_dir, cls_path)
-    if os.path.exists(txt_dir)==False:  # 没有npy文件夹就创建一个
-        os.makedirs(txt_dir)
     classes = class_get(cls_path)
-    info_dict = {"img_name":[],"img_path":[],"object_path":[]}
+    info_dict = {"img_name": [], "img_path": [], "object_path": []}
     for xml_name in tqdm(os.listdir(xml_dir)):
         xml_path = xml_dir + '/' + xml_name
         img_name, img_path, _, height, width, objects_info = readvocxml(xml_path, image_dir)
@@ -114,23 +119,12 @@ def generator(image_dir, xml_dir, txt_dir, cls_path,refer_path):
             objects_info[i][4] /= height
         npy_path = txt_dir + '/' + img_name[:-4] + '.npy'
         objects_info = np.array(objects_info)
-        np.save(npy_path,objects_info)
+        np.save(npy_path, objects_info)
         info_dict['img_name'].append(img_name)
         info_dict['img_path'].append(img_path)
         info_dict['object_path'].append(npy_path)
     df = pd.DataFrame(info_dict)
-    df.to_csv(refer_path,encoding='utf-8')
-
-if  os.path.exists('D:\\Datasets\\VOCtrainval_11-May-2012\\VOCdevkit\\VOC2012_detect\\Annotations_array')==False or \
-    os.path.exists('D:\\Datasets\\VOCtrainval_11-May-2012\\VOCdevkit\\VOC2012_detect\\classes.txt')==False or \
-    os.path.exists('D:\\Datasets\\VOCtrainval_11-May-2012\\VOCdevkit\\VOC2012_detect\\refer.csv')==False :
-    generator(
-        "D:\\Datasets\\VOCtrainval_11-May-2012\\VOCdevkit\\VOC2012\\JPEGImages",
-        "D:\\Datasets\\VOCtrainval_11-May-2012\\VOCdevkit\\VOC2012\\Annotations",
-        "D:\\Datasets\\VOCtrainval_11-May-2012\\VOCdevkit\\VOC2012_detect\\Annotations_array",
-        "D:\\Datasets\\VOCtrainval_11-May-2012\\VOCdevkit\\VOC2012_detect\\classes.txt",
-        "D:\\Datasets\\VOCtrainval_11-May-2012\\VOCdevkit\\VOC2012_detect\\refer.csv"
-    )
+    df.to_csv(refer_path, encoding='utf-8')
 
 
 class VOCDataset(Dataset):
@@ -138,7 +132,8 @@ class VOCDataset(Dataset):
         super(VOCDataset, self).__init__()
         self.image_dir = image_dir
         self.resize = resize
-        self.df = read_csv(csv_path,encoding='utf-8', engine='python')
+        self.df = read_csv(csv_path, encoding='utf-8', engine='python')
+        # 图像转换器，该转换器会调整图像的大小为resize并将其转换为张量
         self.transformer = Compose([
             Resize(self.resize),
             ToTensor(),
@@ -154,11 +149,15 @@ class VOCDataset(Dataset):
 
         return image, label
 
+
 def get_dataloader(image_dir, csv_path, resize, batch_size, num_workders, train_percent=0.9):
     dataset = VOCDataset(image_dir, csv_path, resize)
     num_sample = len(dataset)
+    # 训练数据集数量
     num_train = int(train_percent * num_sample)
+    # 验证数据集数量
     num_valid = num_sample - num_train
+    # 根据数量随机进行数据集分割
     train_ds, valid_ds = random_split(dataset, [num_train, num_valid])
     train_dl = DataLoader(train_ds, batch_size=batch_size, shuffle=True, num_workers=num_workders, pin_memory=True,
                           persistent_workers=True)

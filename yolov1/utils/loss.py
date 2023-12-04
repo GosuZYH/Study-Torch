@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 
+
 def calculate_iou(pred, label):
     x1, a1 = pred[0], label[0]
     y1, b1 = pred[1], label[1]
@@ -23,6 +24,7 @@ def calculate_iou(pred, label):
         return 0
     area_X = w * h
     return area_X / (area_N + area_M - area_X)
+
 
 class YOLO_loss(nn.Module):
     def __init__(self, noobj_weight=0.5):
@@ -75,18 +77,19 @@ class YOLO_loss(nn.Module):
 
                         if iou1 > iou2:
                             obj_loss = obj_loss + (torch.sum((pred_grid[0:2] - label_grid[0:2]) ** 2) +
-                                         torch.sum((pred_grid[2:4].sqrt() - label_grid[2:4].sqrt()) ** 2))
+                                                   torch.sum((pred_grid[2:4].sqrt() - label_grid[2:4].sqrt()) ** 2))
                             confidence_loss = confidence_loss + (pred_grid[4] - 1) ** 2
                             noobj_loss = noobj_loss + ((pred_grid[9] - 0) ** 2)
                         else:
                             obj_loss = obj_loss + (torch.sum((pred_grid[5:7] - label_grid[5:7]) ** 2) +
-                                         torch.sum((pred_grid[7:9].sqrt() - label_grid[7:9].sqrt()) ** 2))
+                                                   torch.sum((pred_grid[7:9].sqrt() - label_grid[7:9].sqrt()) ** 2))
                             confidence_loss = confidence_loss + (pred_grid[9] - 1) ** 2
                             noobj_loss = noobj_loss + ((pred_grid[4] - 0) ** 2)
                         classes_loss = classes_loss + torch.sum((pred_grid[10:] - label_grid[10:]) ** 2)
                     else:
                         noobj_loss = noobj_loss + (pred_grid[4] ** 2 + pred_grid[9] ** 2)
 
-        loss = (obj_loss * self.obj_weight + noobj_loss * self.noobj_weight + classes_loss + confidence_loss) / batch_size
+        loss = (
+                       obj_loss * self.obj_weight + noobj_loss * self.noobj_weight + classes_loss + confidence_loss) / batch_size
 
         return loss

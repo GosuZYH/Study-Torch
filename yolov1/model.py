@@ -1,7 +1,6 @@
- 
 import torch
 import torch.nn as nn
-  
+
 architecture_config = [
 
     # (kernel_size, filters, stride, padding)
@@ -67,7 +66,7 @@ class Yolov1(nn.Module):
 
         for x in architecture:
             if type(x) == tuple:
-                layers += [ CNNBlock( in_channels, x[1], kernel_size=x[0], stride=x[2], padding=x[3] ) ]
+                layers += [CNNBlock(in_channels, x[1], kernel_size=x[0], stride=x[2], padding=x[3])]
                 in_channels = x[1]
 
             elif type(x) == str:
@@ -78,13 +77,13 @@ class Yolov1(nn.Module):
                 conv2 = x[1]
                 num_repeats = x[2]
                 for _ in range(num_repeats):
-                    layers += [CNNBlock(in_channels, conv1[1], kernel_size=conv1[0], stride=conv1[2], padding=conv1[3] )]
-                    layers += [CNNBlock(conv1[1], conv2[1], kernel_size=conv2[0], stride=conv2[2], padding=conv2[3] )]
+                    layers += [CNNBlock(in_channels, conv1[1], kernel_size=conv1[0], stride=conv1[2], padding=conv1[3])]
+                    layers += [CNNBlock(conv1[1], conv2[1], kernel_size=conv2[0], stride=conv2[2], padding=conv2[3])]
                     in_channels = conv2[1]
 
         return nn.Sequential(*layers)
         # CNNBlock [-1, 1024, 7, 7]     
-               
+
     def _create_fcs(self, split_size, num_boxes, num_classes):
         S, B, C = split_size, num_boxes, num_classes
 
@@ -94,12 +93,13 @@ class Yolov1(nn.Module):
         # nn.Linear(4096, S*S*(B*5+C))
 
         return nn.Sequential(
-            nn.Flatten(), # Flatten  [-1, 50176]   
+            nn.Flatten(),  # Flatten  [-1, 50176]
             nn.Linear(1024 * S * S, 496),
             nn.Dropout(0.0),
             nn.LeakyReLU(0.1),
-            nn.Linear(496, S * S * (C + B * 5)) # Linear [-1, 1470]
+            nn.Linear(496, S * S * (C + B * 5))  # Linear [-1, 1470]
         )
+
 
 """
 Implementation of Yolo (v1) architecture
